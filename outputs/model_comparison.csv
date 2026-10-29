@@ -1,0 +1,9 @@
+Model,MAE (MW),RMSE (MW),R2 Score,Features,Weather Aware
+Baseline (Persistence / Lag 1),283.97,363.14,0.9056,Historical Lag 1,No
+Baseline (Seasonal-Naive / Lag 7),551.73,683.02,0.6662,Historical Lag 7,No
+Linear Regression (Demand + Calendar),248.27,322.06,0.9258,Calendar + Lags,No
+Linear Regression (Weather-Aware),218.24,297.56,0.9366,Calendar + Lags + Weather,Yes
+Random Forest (Demand + Calendar),361.5,472.27,0.8404,Calendar + Lags,No
+Random Forest (Weather-Aware),296.32,401.21,0.8848,Calendar + Lags + Weather,Yes
+Gradient Boosting (Demand + Calendar),351.53,463.37,0.8464,Calendar + Lags,No
+Gradient Boosting (Weather-Aware),272.58,379.38,0.897,Calendar + Lags + Weather,Yes

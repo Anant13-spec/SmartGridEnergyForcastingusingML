@@ -60,7 +60,8 @@ def clean_electricity_data(
         data[clean_target_col] = data[clean_target_col].interpolate(method="linear").bfill().ffill()
 
     # Also forward/backward fill numeric weather columns if any rows were added by reindexing
-    for col in config.WEATHER_COLUMNS:
+    all_weather_cols = list(dict.fromkeys(config.WEATHER_COLUMNS + getattr(config, "PRIMARY_WEATHER_FEATURES", [])))
+    for col in all_weather_cols:
         if col in data.columns:
             data[col] = pd.to_numeric(data[col], errors="coerce").interpolate(method="linear").bfill().ffill()
 
@@ -71,6 +72,9 @@ def clean_electricity_data(
         "gaps_filled_count": gaps_filled_count,
         "implausible_count": implausible_count,
         "target_col_clean": clean_target_col,
+        "clean_min_demand": float(data[clean_target_col].min()),
+        "clean_mean_demand": float(data[clean_target_col].mean()),
+        "clean_max_demand": float(data[clean_target_col].max()),
     }
 
     return data, cleaning_metadata
@@ -130,7 +134,7 @@ def build_feature_pipeline(
     # 4. Optional Weather Features (same-day exogenous variables)
     active_weather_cols = []
     if include_weather:
-        candidate_weather = weather_cols or ["temp", "humidity"]
+        candidate_weather = weather_cols or getattr(config, "PRIMARY_WEATHER_FEATURES", ["temp", "humidity", "precip", "windspeed", "solarradiation"])
         for w_col in candidate_weather:
             if w_col in data.columns:
                 active_weather_cols.append(w_col)

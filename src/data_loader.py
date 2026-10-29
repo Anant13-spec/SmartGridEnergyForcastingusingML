@@ -103,6 +103,16 @@ def inspect_data_quality(
     date_present = date_col in df.columns
     target_present = target_col in df.columns
     
+    # Check DATE vs datetime duplicate status
+    date_datetime_identical = False
+    if "DATE" in df.columns and "datetime" in df.columns:
+        date_datetime_identical = bool((df["DATE"].astype(str) == df["datetime"].astype(str)).all())
+
+    # Location and weather station metadata
+    locations = df["name"].dropna().unique().tolist() if "name" in df.columns else []
+    stations = df["stations"].dropna().unique().tolist() if "stations" in df.columns else []
+    conditions = df["conditions"].value_counts().to_dict() if "conditions" in df.columns else {}
+
     report: Dict[str, Any] = {
         "total_rows": total_rows,
         "total_columns": total_cols,
@@ -114,7 +124,12 @@ def inspect_data_quality(
         "target_col": target_col,
         "date_present": date_present,
         "target_present": target_present,
+        "date_datetime_identical": date_datetime_identical,
+        "locations": locations,
+        "stations_count": len(stations),
+        "conditions_summary": conditions,
         "available_weather_cols": [c for c in config.WEATHER_COLUMNS if c in df.columns],
+        "primary_weather_cols": [c for c in config.PRIMARY_WEATHER_FEATURES if c in df.columns],
     }
     
     if not date_present or not target_present:
@@ -173,15 +188,29 @@ def inspect_data_quality(
         else:
             q25, q75, iqr, lower_bound, upper_bound, potential_outliers = 0, 0, 0, 0, 0, 0
 
-        report["target_summary"] = {
+        report["raw_target_summary"] = {
             "mean": float(valid_target.mean()),
             "std": float(valid_target.std()),
             "min": float(valid_target.min()),
+            "min_nonzero": float(clean_subset.min()) if len(clean_subset) > 0 else 0.0,
             "q25": float(valid_target.quantile(0.25)),
             "median": float(valid_target.median()),
             "q75": float(valid_target.quantile(0.75)),
             "max": float(valid_target.max()),
         }
+
+        report["clean_target_summary"] = {
+            "mean": float(clean_subset.mean()) if len(clean_subset) > 0 else float(valid_target.mean()),
+            "std": float(clean_subset.std()) if len(clean_subset) > 0 else float(valid_target.std()),
+            "min": float(clean_subset.min()) if len(clean_subset) > 0 else 0.0,
+            "q25": float(clean_subset.quantile(0.25)) if len(clean_subset) > 0 else 0.0,
+            "median": float(clean_subset.median()) if len(clean_subset) > 0 else 0.0,
+            "q75": float(clean_subset.quantile(0.75)) if len(clean_subset) > 0 else 0.0,
+            "max": float(valid_target.max()),
+        }
+
+        # Backward compatibility
+        report["target_summary"] = report["raw_target_summary"]
         report["zero_or_negative_count"] = zero_or_negative
         report["below_plausible_count"] = below_plausible
         report["above_plausible_count"] = above_plausible
