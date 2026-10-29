@@ -1,0 +1,5 @@
+model,features,records,MAE,RMSE
+HistGradientBoosting,weather_calendar_lags,167.0,297.0648429358243,388.6980059522971
+RandomForest,weather_calendar_lags,167.0,364.9039545131836,463.1745306602011
+HistGradientBoosting,weather_calendar,167.0,407.9886244879375,522.9419732995052
+RandomForest,weather_calendar,167.0,445.00456147024283,561.7997265831831

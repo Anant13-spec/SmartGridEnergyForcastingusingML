@@ -1,0 +1,4 @@
+scenario,date,temperature_C,humidity_percent,predicted_demand,change_from_baseline
+Moderate (baseline),2026-11-01,30.0,60.0,5306.6,0.0
+Hot,2026-11-01,35.0,60.0,6539.2,1232.6
+Hot and humid,2026-11-01,35.0,75.0,6542.18,1235.58
