@@ -1,10 +1,14 @@
 from pathlib import Path
+import math
 
 import joblib
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "df_final.csv"
+if not DATA_PATH.exists():
+    # Keep compatibility with checkouts that store the historical data in data/.
+    DATA_PATH = ROOT / "data" / "df_final.csv"
 MODEL_PATH = ROOT / "models" / "load_forecaster.joblib"
 
 WEATHER_FIELDS = {
@@ -49,6 +53,18 @@ def parse_forecast_date(date_text):
 
 
 def validate_weather(weather):
+    missing = set(WEATHER_FIELDS) - set(weather)
+    if missing:
+        raise ValueError(f"Missing weather fields: {sorted(missing)}")
+    for field in WEATHER_FIELDS:
+        try:
+            value = float(weather[field])
+        except (TypeError, ValueError):
+            raise ValueError(f"{field} must be numeric.") from None
+        if not math.isfinite(value):
+            raise ValueError(f"{field} must be a finite number.")
+        weather[field] = value
+
     errors = []
 
     if not -50 <= weather["temp"] <= 60:
@@ -98,10 +114,6 @@ def validate_weather(weather):
 
 
 def predict_demand(date, weather):
-    artifact = joblib.load(MODEL_PATH)
-    model = artifact["model"]
-    features = artifact["features"]
-
     df = pd.read_csv(DATA_PATH)
     df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
     df["POWER_DEMAND"] = pd.to_numeric(
@@ -115,21 +127,23 @@ def predict_demand(date, weather):
         .reset_index(drop=True)
     )
 
-    target_date = pd.Timestamp(date)
+    target_date = parse_forecast_date(str(date))
 
     if target_date <= df["DATE"].max():
         raise ValueError(
             f"Choose a date after {df['DATE'].max().date()}."
         )
 
-    demand = df["POWER_DEMAND"].where(
-        df["POWER_DEMAND"] > 0
-    ).dropna()
+    artifact = joblib.load(MODEL_PATH)
+    model = artifact["model"]
+    features = artifact["features"]
 
-    if len(demand) < 7:
+    demand = df["POWER_DEMAND"].where(df["POWER_DEMAND"] > 0)
+    if len(demand) < 7 or demand.tail(7).notna().sum() < 1:
         raise ValueError("At least seven positive demand readings are needed.")
-
-    history = demand.tolist()
+    # Match training: lags are based on the last seven chronological rows,
+    # preserving missing/zero readings for the model's fitted imputer.
+    recent = demand.tail(7)
 
     x = {
         "year": target_date.year,
@@ -137,9 +151,9 @@ def predict_demand(date, weather):
         "day_of_year": target_date.day_of_year,
         "day_of_week": target_date.day_of_week,
         "is_weekend": int(target_date.day_of_week >= 5),
-        "demand_lag_1": history[-1],
-        "demand_lag_7": history[-7],
-        "demand_mean_7": sum(history[-7:]) / 7,
+        "demand_lag_1": recent.iloc[-1],
+        "demand_lag_7": recent.iloc[0],
+        "demand_mean_7": recent.mean() if recent.notna().all() else float("nan"),
     }
 
     x.update(weather)
@@ -182,4 +196,3 @@ if __name__ == "__main__":
         )
     except (ValueError, KeyError) as error:
         print("\nPrediction could not be completed:", error)
-        

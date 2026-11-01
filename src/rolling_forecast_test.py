@@ -108,11 +108,15 @@ def main():
     start = 0
     while start < len(test):
         window = test.iloc[start:start + HORIZON]
-        if len(window) < HORIZON:
-            break
+        # Score the final partial block as well, keeping all chronological
+        # holdout dates in the rolling evaluation.
 
         first_idx = window.index[0]
         history = demand.iloc[:first_idx].tolist()
+        observed_before_window = demand.iloc[:first_idx].dropna()
+        if observed_before_window.empty:
+            raise ValueError("No positive demand available to initialize baseline.")
+        baseline_value = float(observed_before_window.iloc[-1])
 
         predictions = []
         for _, row in window.iterrows():
@@ -157,6 +161,7 @@ def main():
                 "DATE": date,
                 "actual_demand": y,
                 "predicted_demand": p,
+                "previous_day_baseline": baseline_value,
                 "absolute_error": abs(y - p) if y > 0 else np.nan,
             })
 

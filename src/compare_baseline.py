@@ -27,9 +27,12 @@ pred = pred.merge(
     how="left",
 )
 
-pred["previous_day_demand"] = pred["DATE"].map(
-    df["POWER_DEMAND"].shift(1)
-)
+if "previous_day_baseline" in pred.columns:
+    # The baseline also forecasts recursively: within each block, carry the
+    # last observed pre-block demand forward without looking at actuals.
+    pred["previous_day_demand"] = pred["previous_day_baseline"]
+else:
+    pred["previous_day_demand"] = pred["DATE"].map(df["POWER_DEMAND"].shift(1))
 
 # Exclude records with zero or missing actual demand.
 # Also require a valid previous-day demand for the baseline.

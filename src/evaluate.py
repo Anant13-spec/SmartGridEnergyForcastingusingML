@@ -54,10 +54,25 @@ test["absolute_error"] = np.abs(actual - predicted)
 
 mae = mean_absolute_error(actual, predicted)
 rmse = np.sqrt(mean_squared_error(actual, predicted))
+matched = test["demand_lag_1"].notna()
+baseline_actual = actual[matched.to_numpy()]
+baseline_predicted = test.loc[matched, "demand_lag_1"].to_numpy()
+baseline_mae = mean_absolute_error(baseline_actual, baseline_predicted)
+baseline_rmse = np.sqrt(mean_squared_error(baseline_actual, baseline_predicted))
+
+metrics = pd.DataFrame([
+    {"model": "saved_model_one_step", "records": len(actual), "MAE": mae, "RMSE": rmse},
+    {"model": "previous_day_baseline", "records": len(baseline_actual), "MAE": baseline_mae, "RMSE": baseline_rmse},
+])
+metrics.to_csv(ROOT / "reports" / "evaluation_metrics.csv", index=False)
 
 print(f"Test records: {len(test)}")
 print(f"MAE: {mae:.2f}")
 print(f"RMSE: {rmse:.2f}")
+print(f"\nPrevious-day baseline on {len(baseline_actual)} matched records:")
+print(f"MAE: {baseline_mae:.2f}")
+print(f"RMSE: {baseline_rmse:.2f}")
+print("Saved comparison: reports/evaluation_metrics.csv")
 print("\nSample predictions:")
 print(
     test[["DATE", "POWER_DEMAND", "predicted_demand", "absolute_error"]]
