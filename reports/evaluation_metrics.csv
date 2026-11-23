@@ -1,3 +1,5 @@
-model,records,MAE,RMSE
-saved_model_one_step,173,268.6274602152085,365.71505032156915
-previous_day_baseline,173,284.87861271676303,363.5773764558519
+Target,Target_Column,Selected_Model,Test_Records,MAE_MW,RMSE_MW,R2,MAPE_percent
+Total Power Demand,Power demand,Linear Regression (Ridge),58930,27.95,79.98,0.9966,0.63
+Zone 1 Demand,demand_zone_1_mw,Linear Regression (Ridge),58930,18.59,70.78,0.9907,1.05
+Zone 2 Demand,demand_zone_2_mw,Linear Regression (Ridge),58930,15.6,41.1,0.9941,0.97
+Zone 3 Demand,demand_zone_3_mw,Linear Regression (Ridge),58930,16.03,71.36,0.9808,1.23

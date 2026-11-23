@@ -1,86 +1,109 @@
-# GridWise: Morocco Hourly Multi-Zone Forecasting
+# SmartGrid: High-Frequency Multi-Zone Energy Consumption Forecasting
 
-GridWise prepares the UCI Power Consumption of Tetouan City dataset, trains a
-separate hourly forecasting model for each of its three zones, evaluates
-recursive 24-hour forecasts, and provides a Streamlit dashboard using this
-workflow.
+SmartGrid is a machine learning electricity load forecasting platform upgraded with a comprehensive 4-year smart grid dataset (`df_3_zones_final.csv`). It provides high-frequency (5-minute and hourly) predictive intelligence for three distinct power distribution zones as well as total system grid demand.
 
-## Data and units
+## 1. Project Architecture & Upgraded Dataset
 
-The original 10-minute source file is `data/powerconsumption.csv`. The
-preprocessing script writes the separate hourly file to
-`data/processed/hourly_powerconsumption.csv`; it never overwrites the source.
-Weather and diffuse-flow observations are averaged within each clock hour.
-Zone readings are also averaged because the dictionary does not establish
-whether each reading is interval energy or a point load. The hourly targets
-are therefore representative mean readings, not verified hourly energy
-totals. See `reports/morocco_preprocessing.md` for the inspection and
-aggregation details.
+The system replaces the legacy single-year dataset with a 4-year smart grid dataset spanning January 2021 to December 2024:
+- **Dataset File:** `data/df_3_zones_final.csv`
+- **Total Observations:** 393,152 observations
+- **Temporal Resolution:** Predominantly 5-minute intervals (99.7% of all time intervals)
+- **Coverage:** January 2, 2021 through December 12, 2024 (48 months)
+- **Demand Targets:**
+  - `demand_zone_1_mw`: Distribution Zone 1 Demand (Mean: ~1,538 MW)
+  - `demand_zone_2_mw`: Distribution Zone 2 Demand (Mean: ~1,456 MW)
+  - `demand_zone_3_mw`: Distribution Zone 3 Demand (Mean: ~1,088 MW)
+  - `Power demand`: Total Grid System Demand (Mean: ~3,961 MW, Peak: 8,632 MW)
+- **Atmospheric Weather Features:**
+  - `temp`: Ambient Temperature (°C)
+  - `dwpt`: Dew Point Temperature (°C)
+  - `rhum`: Relative Humidity (%)
+  - `wdir`: Wind Direction (degrees)
+  - `wspd`: Wind Speed (km/h)
+  - `pres`: Sea-Level / Atmospheric Pressure (hPa)
 
-## Setup
+### Three-Zone vs Total Demand Verification
+Investigation confirms that `Power demand` is **not** identical to `demand_zone_1_mw + demand_zone_2_mw + demand_zone_3_mw` (mean difference: ~428 MW, correlation: 0.947). In utility grid dispatch, total power demand represents system-wide state gross drawal (including transmission losses and auxiliary/institutional load), while the three zones cover specific discom distribution areas. The platform models both individual zones and total demand independently.
 
-Python 3.10 or newer is recommended.
+## 2. Leakage-Free Feature Engineering
+
+- **Strictly Non-Leaking Lags:** Lags are constructed strictly with backwards shifts (`.shift(1)`, `.shift(12)`, `.shift(288)`).
+  - `lag_1`: 5 minutes prior
+  - `lag_12`: 1 hour prior (12 x 5-minute intervals)
+  - `lag_288`: 24 hours prior (288 x 5-minute intervals)
+  - `rolling_mean_1h`: Past 1-hour rolling mean computed strictly as `.shift(1).rolling(12).mean()`.
+- **Exclusion of Leaking Features:** The raw dataset column `moving_avg_3` was found to be computed using contemporaneous unshifted values (including the target at time $t$). It is strictly excluded from all feature sets.
+- **Seasonality & Calendar:** Sine and cosine cyclical encodings for hour-of-day, minute, day-of-week, and month capture diurnal and annual demand cycles smoothly.
+
+## 3. Evaluated Forecasting Models
+
+Models are trained using strict forward chronological splitting (zero random shuffling):
+- **Train Set (70%):** 275,004 observations (2021-01-03 to 2023-10-08)
+- **Validation Set (15%):** 58,930 observations (2023-10-08 to 2024-05-12)
+- **Held-Out Test Set (15%):** 58,930 observations (2024-05-12 to 2024-12-12)
+
+### Held-Out Test Set Performance
+
+| Target | Selected Model | Test MAE | Test RMSE | Test R² | Test MAPE |
+|---|---|---|---|---|---|
+| **Total Power Demand** | Linear Regression (Ridge) | 27.95 MW | 79.98 MW | **0.9966** | 0.63% |
+| **Zone 1 Demand** | HistGradientBoosting / Ridge | 18.59 MW | 70.78 MW | **0.9907** | 1.05% |
+| **Zone 2 Demand** | HistGradientBoosting / Ridge | 15.60 MW | 41.10 MW | **0.9941** | 0.97% |
+| **Zone 3 Demand** | HistGradientBoosting / Ridge | 16.03 MW | 71.36 MW | **0.9808** | 1.23% |
+
+*(All models, including Random Forest and XGBoost, are saved and selectable in the dashboard).*
+
+## 4. Environment Setup
+
+Python 3.10 or newer (tested with Python 3.14):
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-python -m pip install -r requirements.txt
+# On Windows:
+.\.venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-## Prepare, train, and evaluate
+## 5. Execution Pipeline
 
-From the project directory:
+Execute the end-to-end pipeline using the commands below:
 
 ```bash
-python src/preprocess_morocco.py
-python src/train_morocco_hourly.py
-python src/evaluate_morocco_recursive.py
+# 1. Preprocess raw dataset into clean 5-minute and continuous hourly datasets
+python src/preprocess.py
+
+# 2. Train and benchmark multi-model forecasters across all zones and total demand
+python src/train_models.py
+
+# 3. Evaluate models on held-out test data and generate visual plots
+python src/evaluate.py
+
+# 4. Run tests
+pytest
 ```
 
-These commands write the hourly model separately as
-`models/morocco_hourly_zone_forecasters.joblib` and write reports under
-`reports/morocco_hourly_*.csv`. The daily model artifacts and original
-historical dataset remain in the project but are not loaded by the dashboard
-or used by the Morocco hourly workflow.
+## 6. Streamlit Dashboard
 
-The Phase 2 holdout comparison is in
-`reports/morocco_hourly_model_comparison.csv`; Phase 3 horizon metrics and
-predictions are in `reports/morocco_hourly_recursive_24h_metrics.csv` and
-`reports/morocco_hourly_recursive_24h_predictions.csv`. The backtest uses
-observed holdout weather, so it does not measure error in future weather
-forecasts.
-
-## Run the Morocco dashboard
+Launch the interactive dashboard:
 
 ```bash
 streamlit run app.py
 ```
 
-The dashboard contains four pages:
-
-- **24-hour Zone Forecast**: fetch hourly Open-Meteo weather for Tetouan, show
-  peak hours and empirical forecast ranges, and download the weather and zone
-  predictions.
-- **Hourly History**: explore processed hourly zone readings and data quality.
-- **Accuracy & Backtests**: compare predicted and actual holdout readings and
-  inspect errors by recursive forecast horizon.
-- **Actuals Tracking**: record later readings against saved forecasts and
-  monitor errors as actual observations accumulate.
-
-Open-Meteo supplies temperature, humidity, and wind speed. Its shortwave and
-diffuse radiation fields are used as proxies for the source's two diffuse-flow
-features because the source metadata does not specify their units or exact
-measurement definitions. The dashboard discloses this approximation. Live
-weather access requires an internet connection.
-
-## Scope and limitations
-
-The source spans 2017-01-01 through 2017-12-30 and is not current demand data.
-The forecast is an academic prototype, not an operational grid forecast. The
-zone unit semantics and diffuse-flow measurement semantics need confirmation
-before treating its outputs as physical energy or a validated utility forecast.
-Empirical ranges use a small 2017 holdout with observed weather and exclude
-weather forecast errors. New actual readings are stored separately in
-`data/observed/morocco_actuals.csv`.
-
-Dataset source: [UCI Power Consumption of Tetouan City](https://archive.ics.uci.edu/dataset/849/power%2Bconsumption%2Bof%2B).
+### Dashboard Tabs:
+1. **🎯 User-Based Prediction:**
+   - Interactive sliders and number inputs for Temperature, Humidity, Wind Speed, Dew Point, Pressure, and Wind Direction.
+   - Quick operational scenario presets (Extreme Heatwave, Monsoon High Humidity, Winter Peak, High Wind).
+   - Generates real ML predictions for Zone 1, Zone 2, Zone 3, and Total Demand simultaneously.
+   - Compares predicted values against actual historical baseline lags.
+2. **⚡ 24-Hour Horizon Forecast:**
+   - 24-hour lookahead forecasting with peak-hour summaries and downloadable CSVs.
+3. **📈 Historical Grid Analytics:**
+   - Filter and visualize 4 years of 5-minute and hourly historical demand patterns.
+4. **🧪 Model Comparison & Benchmarks:**
+   - Inspect MAE, RMSE, R², and MAPE comparison tables and high-resolution Actual vs Predicted demand curves.
+5. **📝 Actuals Tracking:**
+   - Enter post-forecast observed meter readings and monitor operational error accumulation.

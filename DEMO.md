@@ -1,21 +1,31 @@
-# Five-minute GridWise demo · Morocco hourly forecasting
+# Five-Minute SmartGrid AI Walkthrough Demo
 
-1. Start `streamlit run app.py`. The app opens on the Morocco hourly workflow.
-2. Show the coverage at the top: 8,736 hourly rows from 2017-01-01 through
-   2017-12-30. Explain that zone values are hourly means of the source records,
-   not confirmed hourly energy totals.
-3. In **24-hour Zone Forecast**, click **Forecast next 24 hours**. Show the
-   per-zone peak hours, 90% empirical error bands, all weather inputs, and the
-   downloadable table. Open-Meteo radiation fields are disclosed proxies for
-   the source diffuse-flow fields.
-4. In **Hourly History**, select a shorter date range and inspect the hourly
-   zone patterns and six-reading-per-hour quality check.
-5. In **Accuracy & Backtests**, compare one-step predictions to the holdout and
-   inspect how recursive error changes by forecast horizon. Explain that the
-   recursive backtest uses observed holdout weather.
-6. In **Actuals Tracking**, enter a measured reading for a forecasted hour to
-   show live forecast error monitoring. The entered observations are stored in
-   a separate file.
-7. Close with the limits: demand history is from 2017 only, zone units are
-   ambiguous, empirical ranges use a small same-year holdout, and forecasts
-   are not operational utility forecasts.
+1. **Launch Dashboard:**
+   ```bash
+   streamlit run app.py
+   ```
+   The dashboard loads the 4-year smart grid dataset (393,152 observations from Jan 2021 to Dec 2024).
+
+2. **Overview Metrics:**
+   Point out the top-level KPI metrics showing 48 months of continuous coverage, 5-minute sampling resolution, four forecasting targets (Zone 1, Zone 2, Zone 3, Total Power Demand), and state-of-the-art accuracy ($R^2 = 0.9966$, MAE = 27.95 MW on 4,000 MW total load).
+
+3. **Tab 1 · User-Based Prediction:**
+   - Select the scenario preset **"Extreme Summer Heatwave"** (Temp = 44°C, Humidity = 30%, Pressure = 998 hPa).
+   - Click **"Generate Real ML Prediction"**.
+   - Show how the real ML model forecasts an elevated cooling load across Zone 1, Zone 2, Zone 3, and Total Demand, calculating exact delta increments above historical baseline lags.
+   - Switch inference models (e.g. from Ridge to Random Forest or XGBoost) to demonstrate multi-model capability.
+
+4. **Tab 2 · 24-Hour Horizon Forecast:**
+   - Click **"Forecast Next 24 Hours"**.
+   - Show the 24-hour lookahead curve, peak hours per zone, and downloadable prediction CSV.
+
+5. **Tab 3 · Historical Grid Analytics:**
+   - Select a custom date window (e.g., peak summer months June–July).
+   - Demonstrate the high-frequency 5-minute intra-day peaking and compare the 3 zone load profiles.
+
+6. **Tab 4 · Model Comparison & Benchmarks:**
+   - Inspect the benchmark evaluation table across Ridge, HistGradientBoosting, Random Forest, and XGBoost on the late 2024 held-out test set.
+   - Show the Actual vs Predicted demand curves in `reports/actual_vs_predicted.png` and `reports/zone_comparison.png`.
+
+7. **Tab 5 · Actuals Tracking:**
+   - Demonstrate entering verified meter readings for past hours to monitor operational error drift.

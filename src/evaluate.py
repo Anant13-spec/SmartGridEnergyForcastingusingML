@@ -1,95 +1,106 @@
+from __future__ import annotations
 
 from pathlib import Path
-
-import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[1]
+TEST_PREDS_PATH = ROOT / "reports" / "test_predictions.csv"
+PLOT_TOTAL_PATH = ROOT / "reports" / "actual_vs_predicted.png"
+PLOT_ZONES_PATH = ROOT / "reports" / "zone_comparison.png"
 
-df = pd.read_csv(ROOT / "df_final.csv")
-df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
-df["POWER_DEMAND"] = pd.to_numeric(
-    df["POWER_DEMAND"], errors="coerce"
-)
 
-df = (
-    df.dropna(subset=["DATE", "POWER_DEMAND"])
-    .sort_values("DATE")
-    .drop_duplicates("DATE")
-    .reset_index(drop=True)
-)
+def run_evaluation() -> pd.DataFrame:
+    if not TEST_PREDS_PATH.exists():
+        from train_models import train_and_evaluate
+        train_and_evaluate()
 
-demand = df["POWER_DEMAND"].where(df["POWER_DEMAND"] > 0).ffill()
+    print(f"Reading test predictions from {TEST_PREDS_PATH}...")
+    df = pd.read_csv(TEST_PREDS_PATH)
+    df["datetime"] = pd.to_datetime(df["datetime"])
 
-df["year"] = df["DATE"].dt.year
-df["month"] = df["DATE"].dt.month
-df["day_of_year"] = df["DATE"].dt.dayofyear
-df["day_of_week"] = df["DATE"].dt.dayofweek
-df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
+    targets = [
+        ("Power demand", "Total Power Demand", "Power demand_pred_Linear_Regression_(Ridge)"),
+        ("demand_zone_1_mw", "Zone 1 Demand", "demand_zone_1_mw_pred_Linear_Regression_(Ridge)"),
+        ("demand_zone_2_mw", "Zone 2 Demand", "demand_zone_2_mw_pred_Linear_Regression_(Ridge)"),
+        ("demand_zone_3_mw", "Zone 3 Demand", "demand_zone_3_mw_pred_Linear_Regression_(Ridge)"),
+    ]
 
-df["demand_lag_1"] = demand.shift(1)
-df["demand_lag_7"] = demand.shift(7)
-df["demand_mean_7"] = demand.shift(1).rolling(7).mean()
+    metrics_rows = []
 
-artifact = joblib.load(ROOT / "models" / "load_forecaster.joblib")
-model = artifact["model"]
-features = artifact["features"]
+    for target_col, name, pred_col in targets:
+        actual_col = f"{target_col}_actual"
+        if actual_col not in df.columns or pred_col not in df.columns:
+            matching_preds = [c for c in df.columns if c.startswith(f"{target_col}_pred_")]
+            if matching_preds:
+                pred_col = matching_preds[0]
+            else:
+                continue
 
-# Match the chronological split used during training.
-split = int(len(df) * 0.8)
-test = df.iloc[split:].copy()
+        actual = df[actual_col].to_numpy()
+        predicted = df[pred_col].to_numpy()
 
-valid = test["POWER_DEMAND"].gt(0) & test[features].notna().any(axis=1)
-test = test.loc[valid].copy()
+        mae = float(mean_absolute_error(actual, predicted))
+        rmse = float(np.sqrt(mean_squared_error(actual, predicted)))
+        r2 = float(r2_score(actual, predicted))
+        mape = float(np.mean(np.abs((actual - predicted) / np.maximum(actual, 1.0))) * 100.0)
 
-X = test[features]
-actual = test["POWER_DEMAND"].to_numpy()
-predicted = model.predict(X)
+        metrics_rows.append({
+            "Target": name,
+            "Target_Column": target_col,
+            "Selected_Model": pred_col.replace(f"{target_col}_pred_", "").replace("_", " "),
+            "Test_Records": len(actual),
+            "MAE_MW": round(mae, 2),
+            "RMSE_MW": round(rmse, 2),
+            "R2": round(r2, 4),
+            "MAPE_percent": round(mape, 2),
+        })
 
-test["predicted_demand"] = predicted
-test["absolute_error"] = np.abs(actual - predicted)
+    metrics_df = pd.DataFrame(metrics_rows)
+    print(metrics_df.to_string(index=False))
 
-mae = mean_absolute_error(actual, predicted)
-rmse = np.sqrt(mean_squared_error(actual, predicted))
-matched = test["demand_lag_1"].notna()
-baseline_actual = actual[matched.to_numpy()]
-baseline_predicted = test.loc[matched, "demand_lag_1"].to_numpy()
-baseline_mae = mean_absolute_error(baseline_actual, baseline_predicted)
-baseline_rmse = np.sqrt(mean_squared_error(baseline_actual, baseline_predicted))
+    sample_window = df.tail(2016).copy()
+    plt.figure(figsize=(14, 6))
+    plt.plot(sample_window["datetime"], sample_window["Power demand_actual"], label="Actual Total Demand (MW)", color="#1f77b4", alpha=0.8, linewidth=1.5)
+    plt.plot(sample_window["datetime"], sample_window["Power demand_pred_Linear_Regression_(Ridge)"], label="Predicted Demand (Ridge)", color="#ff7f0e", linestyle="--", alpha=0.85, linewidth=1.5)
+    plt.title("Total Grid Power Demand: Actual vs Predicted (1-Week Test Window - 5-Min Intervals)", fontsize=14, fontweight="bold")
+    plt.xlabel("Datetime", fontsize=11)
+    plt.ylabel("Power Demand (MW)", fontsize=11)
+    plt.grid(True, linestyle=":", alpha=0.6)
+    plt.legend(fontsize=11)
+    plt.tight_layout()
+    plt.savefig(PLOT_TOTAL_PATH, dpi=180)
+    plt.close()
+    print(f"Saved total demand plot to {PLOT_TOTAL_PATH}")
 
-metrics = pd.DataFrame([
-    {"model": "saved_model_one_step", "records": len(actual), "MAE": mae, "RMSE": rmse},
-    {"model": "previous_day_baseline", "records": len(baseline_actual), "MAE": baseline_mae, "RMSE": baseline_rmse},
-])
-metrics.to_csv(ROOT / "reports" / "evaluation_metrics.csv", index=False)
+    fig, axes = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+    zone_info = [
+        ("demand_zone_1_mw", "Zone 1 Demand", "#2ca02c"),
+        ("demand_zone_2_mw", "Zone 2 Demand", "#d62728"),
+        ("demand_zone_3_mw", "Zone 3 Demand", "#9467bd"),
+    ]
+    for idx, (z_col, z_name, color) in enumerate(zone_info):
+        ax = axes[idx]
+        actual = sample_window[f"{z_col}_actual"]
+        pred = sample_window[f"{z_col}_pred_Linear_Regression_(Ridge)"]
+        ax.plot(sample_window["datetime"], actual, label=f"Actual {z_name}", color=color, alpha=0.8, linewidth=1.3)
+        ax.plot(sample_window["datetime"], pred, label=f"Predicted {z_name}", color="black", linestyle="--", alpha=0.7, linewidth=1.2)
+        ax.set_ylabel("Demand (MW)", fontsize=10)
+        ax.set_title(z_name, fontsize=11, fontweight="bold")
+        ax.grid(True, linestyle=":", alpha=0.5)
+        ax.legend(loc="upper right", fontsize=9)
 
-print(f"Test records: {len(test)}")
-print(f"MAE: {mae:.2f}")
-print(f"RMSE: {rmse:.2f}")
-print(f"\nPrevious-day baseline on {len(baseline_actual)} matched records:")
-print(f"MAE: {baseline_mae:.2f}")
-print(f"RMSE: {baseline_rmse:.2f}")
-print("Saved comparison: reports/evaluation_metrics.csv")
-print("\nSample predictions:")
-print(
-    test[["DATE", "POWER_DEMAND", "predicted_demand", "absolute_error"]]
-    .head(15)
-    .round(2)
-    .to_string(index=False)
-)
+    plt.xlabel("Datetime", fontsize=11)
+    plt.suptitle("Three-Zone Electricity Demand: Actual vs Predicted (5-Min Observations)", fontsize=14, fontweight="bold")
+    plt.tight_layout()
+    plt.savefig(PLOT_ZONES_PATH, dpi=180)
+    plt.close()
+    print(f"Saved 3-zone comparison plot to {PLOT_ZONES_PATH}")
 
-test.to_csv(ROOT / "reports" / "test_predictions.csv", index=False)
+    return metrics_df
 
-plt.figure(figsize=(12, 5))
-plt.plot(test["DATE"], actual, label="Actual demand")
-plt.plot(test["DATE"], predicted, label="Predicted demand")
-plt.xlabel("Date")
-plt.ylabel("POWER_DEMAND")
-plt.title("Actual vs Predicted Electricity Demand")
-plt.legend()
-plt.tight_layout()
-plt.savefig(ROOT / "reports" / "actual_vs_predicted.png", dpi=150)
-print("\nSaved graph: reports/actual_vs_predicted.png")
+
+if __name__ == "__main__":
+    run_evaluation()

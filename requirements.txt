@@ -6,3 +6,4 @@ requests>=2.31
 scikit-learn>=1.4
 streamlit>=1.32
 pytest>=8.0
+xgboost>=2.0

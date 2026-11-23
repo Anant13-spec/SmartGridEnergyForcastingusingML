@@ -1,33 +1,41 @@
-"""Open-Meteo response mapping for the model's daily weather inputs."""
+import math
+from typing import Any, Mapping
 
 
-def map_open_meteo_weather(current, daily):
-    def value(section, key, index=None):
-        raw = section.get(key)
-        if isinstance(raw, list):
-            raw = raw[0 if index is None else index] if len(raw) > (0 if index is None else index) else None
-        if raw is None:
-            raise ValueError(f"Weather provider omitted {key}")
+def map_open_meteo_weather(current: Mapping[str, Any], hourly: Mapping[str, Any] | None = None) -> dict[str, float]:
+    def extract_val(data: Mapping[str, Any], key: str, fallback_key: str | None = None) -> float:
+        val = data.get(key)
+        if val is None and fallback_key:
+            val = data.get(fallback_key)
+        if isinstance(val, list):
+            val = val[0] if len(val) > 0 else None
+        if val is None:
+            raise ValueError(f"Weather provider response omitted required field: {key}")
         try:
-            return float(raw)
-        except (TypeError, ValueError):
-            raise ValueError(f"Weather provider returned a non-numeric {key}") from None
+            return float(val)
+        except (TypeError, ValueError) as err:
+            raise ValueError(f"Weather provider returned non-numeric value for {key}: {val}") from err
+
+    temp = extract_val(current, "temperature_2m")
+    rhum = extract_val(current, "relative_humidity_2m")
+
+    if "dew_point_2m" in current and current["dew_point_2m"] is not None:
+        dwpt = extract_val(current, "dew_point_2m")
+    else:
+        a = 17.27
+        b = 237.7
+        alpha = ((a * temp) / (b + temp)) + (math.log(max(rhum, 1.0) / 100.0))
+        dwpt = (b * alpha) / (a - alpha)
+
+    wdir = extract_val(current, "wind_direction_10m", fallback_key="winddirection_10m")
+    wspd = extract_val(current, "wind_speed_10m", fallback_key="windspeed_10m")
+    pres = extract_val(current, "surface_pressure", fallback_key="pressure_msl")
 
     return {
-        "temp": value(current, "temperature_2m"),
-        "tempmax": value(daily, "temperature_2m_max"),
-        "tempmin": value(daily, "temperature_2m_min"),
-        "feelslike": value(current, "apparent_temperature"),
-        "humidity": value(current, "relative_humidity_2m"),
-        "dew": value(current, "dew_point_2m"),
-        "precip": value(current, "precipitation"),
-        "precipprob": value(daily, "precipitation_probability_max"),
-        "windspeed": value(current, "wind_speed_10m"),
-        "windgust": value(current, "wind_gusts_10m"),
-        "sealevelpressure": value(current, "pressure_msl"),
-        "cloudcover": value(current, "cloud_cover"),
-        "visibility": value(current, "visibility") / 1000.0,
-        "solarradiation": value(current, "shortwave_radiation"),
-        "solarenergy": value(daily, "shortwave_radiation_sum"),
-        "uvindex": value(current, "uv_index"),
+        "temp": temp,
+        "dwpt": round(dwpt, 2),
+        "rhum": rhum,
+        "wdir": wdir,
+        "wspd": wspd,
+        "pres": pres,
     }
