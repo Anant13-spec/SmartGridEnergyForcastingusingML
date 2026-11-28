@@ -49,14 +49,21 @@ st.markdown("""
 
 
 @st.cache_data(show_spinner=False)
-def load_app_data():
-    hourly_df, hourly_artifact = load_hourly_inputs()
+def load_app_dataframe():
+    hourly_df, _ = load_hourly_inputs()
+    return hourly_df
+
+
+@st.cache_resource(show_spinner=False)
+def load_app_models():
+    _, hourly_artifact = load_hourly_inputs()
     model_artifact = predict.load_model_artifact()
-    return hourly_df, hourly_artifact, model_artifact
+    return hourly_artifact, model_artifact
 
 
 try:
-    hourly_df, hourly_artifact, model_artifact = load_app_data()
+    hourly_df = load_app_dataframe()
+    hourly_artifact, model_artifact = load_app_models()
 except Exception as exc:
     st.error(f"Could not load data or models: {exc}")
     st.info("Run `python src/preprocess.py` and `python src/train_models.py` first.")

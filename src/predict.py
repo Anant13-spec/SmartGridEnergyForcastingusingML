@@ -11,6 +11,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "models" / "smart_grid_forecasters.joblib"
 LEGACY_MODEL_PATH = ROOT / "models" / "load_forecaster.joblib"
+TAIL_DATA_PATH = ROOT / "data" / "processed" / "recent_5min_tail.csv"
 CLEAN_DATA_PATH = ROOT / "data" / "processed" / "clean_3_zones_5min.csv"
 RAW_DATA_PATH = ROOT / "data" / "df_3_zones_final.csv"
 
@@ -78,9 +79,14 @@ def load_recent_history(limit_rows: int = 500) -> pd.DataFrame:
     if _CACHED_HISTORY is not None:
         return _CACHED_HISTORY
 
-    data_file = CLEAN_DATA_PATH if CLEAN_DATA_PATH.exists() else RAW_DATA_PATH
-    if not data_file.exists():
-        raise FileNotFoundError(f"Historical dataset not found at {data_file}.")
+    if TAIL_DATA_PATH.exists():
+        data_file = TAIL_DATA_PATH
+    elif CLEAN_DATA_PATH.exists():
+        data_file = CLEAN_DATA_PATH
+    elif RAW_DATA_PATH.exists():
+        data_file = RAW_DATA_PATH
+    else:
+        raise FileNotFoundError(f"Historical dataset not found at {CLEAN_DATA_PATH}.")
 
     df = pd.read_csv(data_file)
     df["datetime"] = pd.to_datetime(df["datetime"])

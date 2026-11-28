@@ -21,25 +21,25 @@
 | Target | Model | Train Time (s) | Test MAE (MW) | Test RMSE (MW) | Test R² | Best? |
 |---|---|---|---|---|---|---|
 | Zone 1 Demand | Baseline (Previous Day Lag 288) | 0.00s | 349.17 | 540.77 | 0.4547 | No |
-| Zone 1 Demand | Linear Regression (Ridge) | 0.21s | 18.59 | 70.78 | 0.9907 | No |
-| Zone 1 Demand | HistGradientBoosting | 2.18s | 27.23 | 87.02 | 0.9859 | ★ Yes |
-| Zone 1 Demand | Random Forest | 9.35s | 25.72 | 95.55 | 0.9830 | No |
-| Zone 1 Demand | XGBoost | 1.84s | 32.23 | 98.84 | 0.9818 | No |
+| Zone 1 Demand | Linear Regression (Ridge) | 0.24s | 18.59 | 70.78 | 0.9907 | No |
+| Zone 1 Demand | HistGradientBoosting | 1.65s | 27.23 | 87.02 | 0.9859 | ★ Yes |
+| Zone 1 Demand | Random Forest | 1.87s | 26.03 | 88.91 | 0.9853 | No |
+| Zone 1 Demand | XGBoost | 1.03s | 32.23 | 98.84 | 0.9818 | No |
 | Zone 2 Demand | Baseline (Previous Day Lag 288) | 0.00s | 235.40 | 342.19 | 0.5899 | No |
-| Zone 2 Demand | Linear Regression (Ridge) | 0.19s | 15.60 | 41.10 | 0.9941 | No |
-| Zone 2 Demand | HistGradientBoosting | 1.62s | 21.26 | 53.54 | 0.9900 | ★ Yes |
-| Zone 2 Demand | Random Forest | 9.20s | 19.28 | 53.88 | 0.9898 | No |
-| Zone 2 Demand | XGBoost | 1.54s | 23.57 | 58.81 | 0.9879 | No |
+| Zone 2 Demand | Linear Regression (Ridge) | 0.14s | 15.60 | 41.10 | 0.9941 | No |
+| Zone 2 Demand | HistGradientBoosting | 1.18s | 21.26 | 53.54 | 0.9900 | ★ Yes |
+| Zone 2 Demand | Random Forest | 1.83s | 19.86 | 55.27 | 0.9893 | No |
+| Zone 2 Demand | XGBoost | 0.99s | 23.57 | 58.81 | 0.9879 | No |
 | Zone 3 Demand | Baseline (Previous Day Lag 288) | 0.00s | 196.34 | 313.32 | 0.6298 | No |
-| Zone 3 Demand | Linear Regression (Ridge) | 0.19s | 16.03 | 71.36 | 0.9808 | No |
-| Zone 3 Demand | HistGradientBoosting | 1.77s | 18.43 | 65.43 | 0.9839 | ★ Yes |
-| Zone 3 Demand | Random Forest | 8.76s | 16.17 | 67.38 | 0.9829 | No |
-| Zone 3 Demand | XGBoost | 1.85s | 20.34 | 68.11 | 0.9825 | No |
+| Zone 3 Demand | Linear Regression (Ridge) | 0.14s | 16.03 | 71.36 | 0.9808 | No |
+| Zone 3 Demand | HistGradientBoosting | 1.62s | 18.43 | 65.43 | 0.9839 | ★ Yes |
+| Zone 3 Demand | Random Forest | 2.35s | 17.26 | 68.90 | 0.9821 | No |
+| Zone 3 Demand | XGBoost | 1.82s | 20.34 | 68.11 | 0.9825 | No |
 | Total Power Demand | Baseline (Previous Day Lag 288) | 0.00s | 614.18 | 921.77 | 0.5524 | No |
-| Total Power Demand | Linear Regression (Ridge) | 0.23s | 27.95 | 79.98 | 0.9966 | ★ Yes |
-| Total Power Demand | HistGradientBoosting | 1.90s | 46.55 | 128.17 | 0.9913 | No |
-| Total Power Demand | Random Forest | 9.23s | 34.06 | 95.21 | 0.9952 | No |
-| Total Power Demand | XGBoost | 1.69s | 52.86 | 147.08 | 0.9886 | No |
+| Total Power Demand | Linear Regression (Ridge) | 0.41s | 27.95 | 79.98 | 0.9966 | ★ Yes |
+| Total Power Demand | HistGradientBoosting | 1.54s | 46.55 | 128.17 | 0.9913 | No |
+| Total Power Demand | Random Forest | 2.02s | 34.09 | 93.99 | 0.9953 | No |
+| Total Power Demand | XGBoost | 1.06s | 52.86 | 147.08 | 0.9886 | No |
 
 ## Key Engineering & Modeling Insights
 1. **Linear Autoregressive Baseline (Ridge) Superiority in High-Frequency Dispatch:**

@@ -98,6 +98,8 @@ def preprocess(
 
     output_5min_path.parent.mkdir(parents=True, exist_ok=True)
     clean_5min.to_csv(output_5min_path, index=False)
+    tail_path = output_5min_path.parent / "recent_5min_tail.csv"
+    clean_5min.tail(1000).to_csv(tail_path, index=False)
     print(f"Saved clean 5-minute dataset to {output_5min_path} ({len(clean_5min)} rows).")
 
     hourly_raw = (

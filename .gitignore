@@ -5,3 +5,8 @@ __pycache__/
 .vscode/
 .idea/
 .ipynb_checkpoints/
+
+# Raw and full 5-minute training datasets (>100MB, excluded from GitHub)
+data/df_3_zones_final.csv
+data/processed/clean_3_zones_5min.csv
+

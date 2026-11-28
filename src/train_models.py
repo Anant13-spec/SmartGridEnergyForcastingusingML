@@ -83,9 +83,9 @@ def get_model_zoo():
             random_state=42,
         ),
         "Random Forest": RandomForestRegressor(
-            n_estimators=60,
-            max_depth=16,
-            max_samples=0.3,
+            n_estimators=40,
+            max_depth=10,
+            max_samples=0.15,
             random_state=42,
             n_jobs=-1,
         ),
@@ -275,7 +275,7 @@ def train_and_evaluate(
 
     if save_models:
         MODEL_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump(artifacts, MODEL_OUTPUT_PATH)
+        joblib.dump(artifacts, MODEL_OUTPUT_PATH, compress=3)
         print(f"\nSaved all model artifacts to {MODEL_OUTPUT_PATH}")
 
         legacy_artifact = {
